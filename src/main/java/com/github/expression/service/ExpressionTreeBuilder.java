@@ -4,422 +4,225 @@ import com.github.expression.model.ExpressionTree;
 import com.github.expression.util.ConstantHolder;
 
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 public class ExpressionTreeBuilder {
 
-    private TokenExtractor tokenExtractor = new TokenExtractor();
+    private TokenExtractor tokenExtractor;
+    private List<String> compareOperators = Arrays.asList(ConstantHolder.OP_EQ, ConstantHolder.OP_NE, ConstantHolder.OP_LT,
+            ConstantHolder.OP_LE, ConstantHolder.OP_GT, ConstantHolder.OP_GE,
+            ConstantHolder.OP_CONTAINS, ConstantHolder.OP_LIKE, ConstantHolder.OP_LIKEFILE);
 
     private String[] expressionTokens;
     private int currentTokenIndex;
 
-    public ExpressionTree build(String expr) throws ParseException {
-        ExpressionTree tree;
-        ExpressionTree res;
+    public ExpressionTreeBuilder() {
+        this.tokenExtractor = new TokenExtractor();
+    }
 
+    public ExpressionTreeBuilder withExpression(String expr) throws ParseException {
         List<String> tokens = tokenExtractor.getTokens(expr);
-
-        expressionTokens = tokens.toArray(new String[tokens.size()]);
-
-        // Parse the expression tokens
-        currentTokenIndex = 0;
-        tree = parse_or_expr();
-
-        if (tree.getValue() != null) {
-            res = new ExpressionTree(ConstantHolder.OP_VALUE, tree);
-        } else {
-            res = tree;
+        if (tokens.isEmpty()) {
+            throw new ParseException("Tokens not found", -1);
         }
+        expressionTokens = tokens.toArray(new String[tokens.size()]);
+        currentTokenIndex = 0;
+        return this;
+    }
 
+    public ExpressionTree build() throws ParseException {
+        ExpressionTree tree = parseOrExpression();
+        validateEndOfExpression();
+        return tree.getValue() != null ? new ExpressionTree(ConstantHolder.OP_VALUE, tree) : tree;
+    }
 
-        // Check for the end of the expression
-        if (currentTokenIndex < expressionTokens.length)
+    private void validateEndOfExpression() throws ParseException {
+        if (currentTokenIndex < expressionTokens.length) {
             throw new ParseException("Malformed expression at: '"
                     + expressionTokens[currentTokenIndex] + "'", currentTokenIndex);
-
-        return (res);
+        }
     }
 
+    private ExpressionTree parseOrExpression() throws ParseException {
+        ExpressionTree result = parseAndExpression();
 
-    private ExpressionTree parse_or_expr()
-            throws ParseException
-    {
-        ExpressionTree	res;
-
-        // or_expr: and_expr ['OR' and_expr]...
-        res = parse_and_expr();
-
-        for (;;)
-        {
-            String	tok;
-            String	keyword;
-
-            // Check for end of expression
-            if (currentTokenIndex >= expressionTokens.length)
-                return (res);
-
-            // Continue parsing
-            tok = expressionTokens[currentTokenIndex++];
-            keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
-            if (keyword == null)
-                throw new ParseException("Bad operator: '" + tok + "'",
-                        currentTokenIndex-1);
-
-            // Parse a mul-op
-            if (keyword == ConstantHolder.OP_OR)
-            {
-                ExpressionTree	expr;
-
-                // or_expr: and_expr 'OR' and_expr
-                expr = new ExpressionTree(keyword, res, parse_and_expr());
-                res = expr;
+        while (currentTokenIndex < expressionTokens.length) {
+            String	token = expressionTokens[currentTokenIndex++];
+            String	keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
+            if (keyword == null) {
+                throw new ParseException("Bad operator: '" + token + "'", currentTokenIndex-1);
             }
-            else
-            {
+
+            if (Objects.equals(keyword, ConstantHolder.OP_OR)) {
+                result = new ExpressionTree(keyword, result, parseAndExpression());
+            } else {
                 currentTokenIndex--;
-                return (res);
+                return result;
             }
         }
+        return result;
     }
 
-    /***************************************************************************
-     * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
-     *
-     * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-     * <p>
-     * <b> Syntax </b>
-     * <p>
-     * <pre>
-     *    and_expr:
-     *        not_expr
-     *        not_expr 'AND' and_expr           op: OP_AND
-     * </pre>
-     *
-     * @since	1.1, 2001-03-23
-     */
 
-    private ExpressionTree parse_and_expr()
-            throws ParseException
-    {
-        ExpressionTree	res;
+    private ExpressionTree parseAndExpression() throws ParseException {
+        ExpressionTree result = parseNotExpression();
 
-        // and_expr: not_expr ['AND' not_expr]...
-        res = parse_not_expr();
-
-        for (;;)
-        {
-            String	tok;
-            String	keyword;
-
-            // Check for end of expression
-            if (currentTokenIndex >= expressionTokens.length)
-                return (res);
-
-            // Continue parsing
-            tok = expressionTokens[currentTokenIndex++];
-            keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
-            if (keyword == null)
-                throw new ParseException("Bad operator: '" + tok + "'",
-                        currentTokenIndex-1);
-
-            // Parse a mul-op
-            if (keyword == ConstantHolder.OP_AND)
-            {
-                ExpressionTree	expr;
-
-                // and_expr: not_expr 'AND' not_expr
-                expr = new ExpressionTree(keyword, res, parse_not_expr());
-                res = expr;
+        while (currentTokenIndex < expressionTokens.length) {
+            String token = expressionTokens[currentTokenIndex++];
+            String keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
+            if (keyword == null) {
+                throw new ParseException("Bad operator: '" + token + "'", currentTokenIndex-1);
             }
-            else
-            {
+
+            if (Objects.equals(keyword, ConstantHolder.OP_AND)) {
+                result = new ExpressionTree(keyword, result, parseNotExpression());
+            } else {
                 currentTokenIndex--;
-                return (res);
+                return result;
             }
         }
+        return result;
     }
 
-    /***************************************************************************
-     * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
-     *
-     * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-     * <p>
-     * <b> Syntax </b>
-     * <p>
-     * <pre>
-     *    not_expr:
-     *        cmp_expr
-     *        'NOT' not_expr                    op: OP_NOT
-     * </pre>
-     *
-     * @since	1.6, 2001-04-08
-     */
 
-    private ExpressionTree parse_not_expr()
-            throws ParseException
-    {
-        ExpressionTree	res;
-        String	tok;
-        String	keyword;
-
-        // Check for end of expression
-        if (currentTokenIndex >= expressionTokens.length)
-            return (null);
-
-        // Continue parsing
-        tok = expressionTokens[currentTokenIndex++];
-        keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
-
-        if (keyword == ConstantHolder.OP_NOT)
-        {
-            ExpressionTree	expr;
-
-            // not_expr: 'NOT' cmp_expr
-            expr = new ExpressionTree(keyword, parse_not_expr());
-            res = expr;
+    private ExpressionTree parseNotExpression() throws ParseException {
+        ExpressionTree result;
+        if (currentTokenIndex >= expressionTokens.length) {
+            return null;
         }
-        else
-        {
-            // not_expr: cmp_expr
+        String token = expressionTokens[currentTokenIndex++];
+        String keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
+
+        if (Objects.equals(keyword, ConstantHolder.OP_NOT)) {
+            result = new ExpressionTree(keyword, parseNotExpression());
+        } else {
             currentTokenIndex--;
-            res = parse_cmp_expr();
+            result = parseCompareExpression();
         }
-
-        return (res);
+        return result;
     }
 
-    /***************************************************************************
-     * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
-     *
-     * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-     * <p>
-     * <b> Syntax </b>
-     * <p>
-     * <pre>
-     *    cmp_expr:
-     *        add_expr
-     *        add_expr 'IS' ['NOT'] 'NULL'                         op: OP_IS
-     *        add_expr ['NOT'] '='  add_expr                       op: OP_EQ
-     *        add_expr ['NOT'] '&lt;&gt;' add_expr                       op: OP_NE
-     *        add_expr ['NOT'] '&lt;'  add_expr                       op: OP_LT
-     *        add_expr ['NOT'] '&lt;=' add_expr                       op: OP_LE
-     *        add_expr ['NOT'] '&gt;'  add_expr                       op: OP_GT
-     *        add_expr ['NOT'] '&gt;=' add_expr                       op: OP_GE
-     *        add_expr ['NOT'] 'CONTAINS' add_expr                 op: OP_CONTAINS
-     *        add_expr ['NOT'] 'LIKE'     add_expr                 op: OP_LIKE
-     *        add_expr ['NOT'] 'LIKEFILE' add_expr                 op: OP_LIKEFILE
-     *        add_expr ['NOT'] 'BETWEEN'  add_expr 'AND' add_expr  op: OP_BETWEEN
-     *        add_expr ['NOT'] 'IN' '(' expr_list ')'              op: OP_IN
-     * </pre>
-     *
-     * @since	1.1, 2001-03-24
-     */
+    private ExpressionTree parseCompareExpression() throws ParseException {
+        ExpressionTree result = parse_add_expr();
 
-    private ExpressionTree parse_cmp_expr()
-            throws ParseException
-    {
-        ExpressionTree	res;
-        String	tok;
-        String	keyword;
-        boolean	isCompl;
-
-        // Parse 'add_expr'
-        res = parse_add_expr();
-
-        // Check for end of expression
-        if (currentTokenIndex >= expressionTokens.length)
-            return (res);
+        if (currentTokenIndex >= expressionTokens.length) {
+            return result;
+        }
 
         // Continue parsing
-        tok = expressionTokens[currentTokenIndex++];
-        keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+        String token = expressionTokens[currentTokenIndex++];
+        String keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
 
-        if (keyword == null)
-        {
-            // Invalid operator
-            throw new ParseException("Bad operator: '" + tok + "'", currentTokenIndex-1);
+        if (keyword == null) {
+            throw new ParseException("Bad operator: '" + token + "'", currentTokenIndex-1);
         }
 
-        // Parse 'IS [NOT] NULL'
-        if (keyword == ConstantHolder.OP_IS)
-        {
-            ExpressionTree	expr;
+        if (Objects.equals(keyword, ConstantHolder.OP_IS)) {
 
-            // Parse '[NOT] NULL'
-            if (currentTokenIndex < expressionTokens.length)
-                tok = expressionTokens[currentTokenIndex++];
-            else
-                throw new ParseException("Missing operand following: '"
-                        + tok + "'", currentTokenIndex-1);
-            keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+            if (currentTokenIndex < expressionTokens.length) {
+                token = expressionTokens[currentTokenIndex++];
+            } else {
+                throw new ParseException("Missing operand following: '" + token + "'", currentTokenIndex-1);
+            }
+            keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
 
-            expr = new ExpressionTree(ConstantHolder.OP_IS, res, new ExpressionTree(ConstantHolder.OP_NULL));
-            res = expr;
+            result = new ExpressionTree(ConstantHolder.OP_IS, result, new ExpressionTree(ConstantHolder.OP_NULL));
 
-            // Parse an optional 'NOT'
-            if (keyword == ConstantHolder.OP_NOT)
-            {
-                // Consume a 'NOT'
-                if (currentTokenIndex < expressionTokens.length)
-                    tok = expressionTokens[currentTokenIndex++];
-                else
-                    throw new ParseException("Missing 'NULL' following: '"
-                            + tok + "'", currentTokenIndex-1);
-                keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+            if (Objects.equals(keyword, ConstantHolder.OP_NOT)) {
+                if (currentTokenIndex < expressionTokens.length) {
+                    token = expressionTokens[currentTokenIndex++];
+                } else {
+                    throw new ParseException("Missing 'NULL' following: '" + token + "'", currentTokenIndex-1);
+                }
+                keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
 
-                // cmp_expr: add_expr 'IS' ['NOT'] 'NULL'
-                expr = new ExpressionTree(ConstantHolder.OP_NOT, res);
-                res = expr;
+                result = new ExpressionTree(ConstantHolder.OP_NOT, result);
             }
 
-            // Parse 'NULL'
-            if (keyword != ConstantHolder.OP_NULL)
-                throw new ParseException("Missing 'NULL' at: '"
-                        + tok + "'", currentTokenIndex-1);
+            if (!Objects.equals(keyword, ConstantHolder.OP_NULL)) {
+                throw new ParseException("Missing 'NULL' at: '" + token + "'", currentTokenIndex-1);
+            }
 
-            return (res);
+            return result;
         }
 
-        // Parse an optional 'NOT'
-        isCompl = false;
-        if (keyword == ConstantHolder.OP_NOT)
-        {
-            // Consume a 'NOT'
-            if (currentTokenIndex < expressionTokens.length)
-                tok = expressionTokens[currentTokenIndex++];
-            else
-                throw new ParseException("Missing operator following: '"
-                        + tok + "'", currentTokenIndex-1);
-
+        boolean isCompl = false;
+        if (Objects.equals(keyword, ConstantHolder.OP_NOT)) {
+            if (currentTokenIndex < expressionTokens.length) {
+                token = expressionTokens[currentTokenIndex++];
+            } else {
+                throw new ParseException("Missing operator following: '" + token + "'", currentTokenIndex-1);
+            }
             isCompl = true;
-            keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+            keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
         }
 
         // Parse a compare-op
-        if (keyword == ConstantHolder.OP_EQ  ||
-                keyword == ConstantHolder.OP_NE  ||
-                keyword == ConstantHolder.OP_LT  ||
-                keyword == ConstantHolder.OP_LE  ||
-                keyword == ConstantHolder.OP_GT  ||
-                keyword == ConstantHolder.OP_GE  ||
-                keyword == ConstantHolder.OP_CONTAINS ||
-                keyword == ConstantHolder.OP_LIKE  ||
-                keyword == ConstantHolder.OP_LIKEFILE)
-        {
-            ExpressionTree	expr;
-
-            // cmp_expr: add_expr ['NOT'] compare-op add_expr
-            expr = new ExpressionTree(keyword, res, parse_add_expr());
-            res = expr;
-        }
-        else if (keyword == ConstantHolder.OP_BETWEEN)
-        {
-            ExpressionTree	expr;
+        if (compareOperators.contains(keyword)) {
+            result = new ExpressionTree(keyword, result, parse_add_expr());
+        } else if (Objects.equals(keyword, ConstantHolder.OP_BETWEEN)) {
             ExpressionTree	sub;
             ExpressionTree	lo;
             ExpressionTree	hi;
-
-            // cmp_expr: add_expr1 ['NOT'] 'BETWEEN' add_expr2 'AND' add_expr3
-            expr = new ExpressionTree(ConstantHolder.OP_BETWEEN, res);
-
             lo = parse_add_expr();
-
-            // Consume an 'AND'
-            tok = "<end>";
+            token = "<end>";
             keyword = null;
-            if (currentTokenIndex < expressionTokens.length)
-            {
-                tok = expressionTokens[currentTokenIndex++];
-                keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+            if (currentTokenIndex < expressionTokens.length) {
+                token = expressionTokens[currentTokenIndex++];
+                keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
             }
 
-            if (keyword != ConstantHolder.OP_AND)
-                throw new ParseException("Missing expected 'AND' at: '"
-                        + tok + "'", currentTokenIndex-1);
-
+            if (!Objects.equals(keyword, ConstantHolder.OP_AND)) {
+                throw new ParseException("Missing expected 'AND' at: '" + token + "'", currentTokenIndex-1);
+            }
             hi = parse_add_expr();
-
-            // Build an expr subtree: {BETWEEN op1 {AND op2 op3}}
             sub = new ExpressionTree(ConstantHolder.OP_AND, lo, hi);
-
-            expr.setRight(sub);
-            res = expr;
-        }
-        else if (keyword == ConstantHolder.OP_IN)
-        {
+            result = new ExpressionTree(ConstantHolder.OP_BETWEEN, result, sub);
+        } else if (Objects.equals(keyword, ConstantHolder.OP_IN)) {
             ExpressionTree	expr;
 
-            // cmp_expr: add_expr ['NOT'] 'IN' '(' expr_list ')'
-            expr = new ExpressionTree(ConstantHolder.OP_IN, res);
+            expr = new ExpressionTree(ConstantHolder.OP_IN, result);
 
-            // Consume a '('
-            tok = "<end>";
+            token = "<end>";
             keyword = null;
-            if (currentTokenIndex < expressionTokens.length)
-            {
-                tok = expressionTokens[currentTokenIndex++];
-                keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+            if (currentTokenIndex < expressionTokens.length) {
+                token = expressionTokens[currentTokenIndex++];
+                keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
             }
 
-            if (keyword != ConstantHolder.OP_LP)
-                throw new ParseException("Missing expected '(' at: '"
-                        + tok + "'", currentTokenIndex-1);
+            if (!Objects.equals(keyword, ConstantHolder.OP_LP)) {
+                throw new ParseException("Missing expected '(' at: '" + token + "'", currentTokenIndex-1);
+            }
 
             expr.setRight(parse_expr_list());
 
-            // Consume a ')'
-            tok = "<end>";
+            token = "<end>";
             keyword = null;
-            if (currentTokenIndex < expressionTokens.length)
-            {
-                tok = expressionTokens[currentTokenIndex++];
-                keyword = (String) ConstantHolder.operatorsMap.get(tok.toLowerCase());
+            if (currentTokenIndex < expressionTokens.length) {
+                token = expressionTokens[currentTokenIndex++];
+                keyword = ConstantHolder.operatorsMap.get(token.toLowerCase());
             }
 
-            if (keyword != ConstantHolder.OP_RP)
+            if (!Objects.equals(keyword, ConstantHolder.OP_RP)) {
                 throw new ParseException("Missing expected ')' at: '"
-                        + tok + "'", currentTokenIndex-1);
+                        + token + "'", currentTokenIndex-1);
+            }
 
-            res = expr;
+            result = expr;
         }
-        else
+        else {
             currentTokenIndex--;
-
-        // Handle a 'NOT' operator modifier
-        if (isCompl)
-        {
-            ExpressionTree	expr;
-
-            // cmp_expr: add_expr 'NOT' compare-op add_expr
-            expr = new ExpressionTree(ConstantHolder.OP_NOT, res);
-            res = expr;
         }
 
-        return (res);
+        if (isCompl) {
+            result = new ExpressionTree(ConstantHolder.OP_NOT, result);
+        }
+
+        return result;
     }
 
-    /***************************************************************************
-     * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
-     *
-     * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-     * <p>
-     * <b> Syntax </b>
-     * <p>
-     * <pre>
-     *    add_expr:
-     *        mul_expr
-     *        mul_expr '+'  add_expr            op: OP_ADD
-     *        mul_expr '-'  add_expr            op: OP_SUB
-     *        mul_expr '||' add_expr            op: OP_CONCAT
-     * </pre>
-     *
-     * @since	1.10, 2007-07-30
-     */
 
     private ExpressionTree parse_add_expr()
             throws ParseException
@@ -466,7 +269,7 @@ public class ExpressionTreeBuilder {
 
     /***************************************************************************
      * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
+     * See {@link #parseOrExpression} for further details.
      *
      * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
      * <p>
@@ -528,7 +331,7 @@ public class ExpressionTreeBuilder {
 
     /***************************************************************************
      * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
+     * See {@link #parseOrExpression} for further details.
      *
      * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
      * <p>
@@ -583,7 +386,7 @@ public class ExpressionTreeBuilder {
 
     /***************************************************************************
      * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
+     * See {@link #parseOrExpression} for further details.
      *
      * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
      * <p>
@@ -640,7 +443,7 @@ public class ExpressionTreeBuilder {
 
     /***************************************************************************
      * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
+     * See {@link #parseOrExpression} for further details.
      *
      * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
      * <p>
@@ -701,7 +504,7 @@ public class ExpressionTreeBuilder {
             ExpressionTree	expr;
 
             // operand: '(' or_expr ')'
-            res = parse_or_expr();
+            res = parseOrExpression();
 
             // Consume a closing ')'
             tok = "<end>";
@@ -727,7 +530,7 @@ public class ExpressionTreeBuilder {
 
     /***************************************************************************
      * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
+     * See {@link #parseOrExpression} for further details.
      *
      * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
      * <p>
@@ -856,7 +659,7 @@ public class ExpressionTreeBuilder {
 
     /***************************************************************************
      * Parse a query subexpression, converting it into an expression subtree.
-     * See {@link #parse_or_expr} for further details.
+     * See {@link #parseOrExpression} for further details.
      *
      * <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
      * <p>

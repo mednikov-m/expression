@@ -7,15 +7,16 @@ import java.io.PrintWriter;
 
 public class Application {
     public static void main(String[] args) throws Exception {
-        ExpressionTreeBuilder parser;     // Query expression parser
-        String      crit;       // Query expression
-        ExpressionTree query;      // Query control object
-
-        parser = new ExpressionTreeBuilder();
-        crit = "date >= '2001-08-01' or transactionId like 'report%.pdf'";
-        String queryStr = "transactionId = 1";
-        query = parser.build(crit);
+        String expression = "(date >= '2001-08-01' or transactionId like 'report%.pdf') and transaction.id like '55'";
+        ExpressionTree tree = new ExpressionTreeBuilder()
+                .withExpression(expression)
+                .build();
         PrintWriter writer = new PrintWriter(System.out);
-        query.writeAsXml(writer);
+        tree.writeAsXml(writer);
+
+//        ExpressionTree tree2 = new ExpressionTreeBuilder()
+//                .withExpression("transaction.id like '55'")
+//                .build();
+//        tree2.writeAsXml(writer);
     }
 }
