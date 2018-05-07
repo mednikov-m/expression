@@ -1,6 +1,6 @@
-package com.github.expression.model;
+package com.github.expression.token;
 
-public class LineMetadata {
+class LineMetadata {
     private int currentPosition;
     private char currentChar;
 

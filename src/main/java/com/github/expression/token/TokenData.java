@@ -1,6 +1,6 @@
-package com.github.expression.model;
+package com.github.expression.token;
 
-public class TokenData {
+class TokenData {
     private String extractedToken;
     private int position;
 

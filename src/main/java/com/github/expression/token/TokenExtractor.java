@@ -1,9 +1,7 @@
-package com.github.expression.service;
+package com.github.expression.token;
 
-import com.github.expression.model.LineMetadata;
-import com.github.expression.model.TokenData;
+import com.github.expression.exception.ParseException;
 
-import java.text.ParseException;
 import java.util.*;
 
 public class TokenExtractor {

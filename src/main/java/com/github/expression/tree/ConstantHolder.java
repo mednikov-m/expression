@@ -1,9 +1,9 @@
-package com.github.expression.util;
+package com.github.expression.tree;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class ConstantHolder {
+class ConstantHolder {
     public static final String OP_NOP = "nop"; 
     public static final String OP_VALUE = "val";
     public static final String OP_NOT = "not";
