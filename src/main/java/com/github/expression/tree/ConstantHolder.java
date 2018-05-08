@@ -1,45 +1,52 @@
 package com.github.expression.tree;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 
 class ConstantHolder {
-    public static final String OP_NOP = "nop"; 
-    public static final String OP_VALUE = "val";
-    public static final String OP_NOT = "not";
-    public static final String OP_AND = "and";
-    public static final String OP_OR = "or";
-    public static final String OP_LIST = "list";
-    public static final String OP_IS = "is";
-    public static final String OP_EQ = "eq";
-    public static final String OP_NE = "ne";
-    public static final String OP_LT = "lt";
-    public static final String OP_LE = "le";
-    public static final String OP_GT = "gt";
-    public static final String OP_GE = "ge";
-    public static final String OP_EXPO = "exp";
-    public static final String OP_MUL = "mul";
-    public static final String OP_DIV = "div";
-    public static final String OP_MOD = "mod";
-    public static final String OP_ADD = "add";
-    public static final String OP_SUB = "sub";
-    public static final String OP_CONCAT = "concat";
-    public static final String OP_POS = "pos";
-    public static final String OP_NEG = "neg";
-    public static final String OP_MEMBER = "member";
-    public static final String OP_SUBSCR = "subscr";
-    public static final String OP_CONTAINS = "contains";
-    public static final String OP_LIKE = "like";
-    public static final String OP_LIKEFILE = "likefile"; 
-    public static final String OP_IN = "in";
-    public static final String OP_BETWEEN = "between";
-    public static final String OP_NULL = "null";
+    static final String OP_NOP = "nop"; 
+     static final String OP_VALUE = "val";
+     static final String OP_NOT = "not";
+     static final String OP_AND = "and";
+     static final String OP_OR = "or";
+     static final String OP_LIST = "list";
+     static final String OP_IS = "is";
+     static final String OP_EQ = "eq";
+     static final String OP_NE = "ne";
+     static final String OP_LT = "lt";
+     static final String OP_LE = "le";
+     static final String OP_GT = "gt";
+     static final String OP_GE = "ge";
+     static final String OP_EXPO = "exp";
+     static final String OP_MUL = "mul";
+     static final String OP_DIV = "div";
+     static final String OP_MOD = "mod";
+     static final String OP_ADD = "add";
+     static final String OP_SUB = "sub";
+     static final String OP_CONCAT = "concat";
+     static final String OP_POS = "pos";
+     static final String OP_NEG = "neg";
+     static final String OP_MEMBER = "member";
+     static final String OP_SUBSCR = "subscr";
+     static final String OP_CONTAINS = "contains";
+     static final String OP_LIKE = "like";
+     static final String OP_LIKEFILE = "likefile"; 
+     static final String OP_IN = "in";
+     static final String OP_BETWEEN = "between";
+     static final String OP_NULL = "null";
 
-    public static final String OP_LP = "(";
-    public static final String OP_RP = ")";
-    public static final String OP_SUBSCR2 = "]";
+     static final String OP_LP = "(";
+     static final String OP_RP = ")";
+     static final String OP_SUBSCR2 = "]";
 
-    public static final Map<String, String> operatorsMap;
+    static final Map<String, String> operatorsMap;
+    static final Map<String, String> reversedOperatorsMap;
     
     static {
        operatorsMap = new HashMap<>();
@@ -75,5 +82,14 @@ class ConstantHolder {
        operatorsMap.put("in", OP_IN);
        operatorsMap.put("between", OP_BETWEEN);
        operatorsMap.put("null", OP_NULL);
+
+       reversedOperatorsMap = inverseMap(operatorsMap).entrySet()
+               .stream()
+               .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
+    }
+
+    public static <Key, Value> Map<Value, List<Key>> inverseMap(Map<Key, Value> map) {
+        return map.entrySet().stream()
+                .collect(groupingBy(Map.Entry::getValue, mapping(Map.Entry::getKey, toList())));
     }
 }

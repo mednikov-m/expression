@@ -1,13 +1,12 @@
-package com.github.expression;
+package com.github.expression.formatter;
 
 import com.github.expression.formatter.ExpressionTreeXmlFormatter;
 import com.github.expression.tree.ExpressionTree;
-import com.github.expression.tree.ExpressionTreeBuilder;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class ExpressionTreeBuilderTest {
+public class ExpressionTreeXmlFormatterTest {
 
     @Test
     public void treeShouldBeBuiltAndFormattedToXml() {

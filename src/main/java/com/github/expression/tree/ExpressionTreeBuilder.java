@@ -424,7 +424,7 @@ public class ExpressionTreeBuilder {
 
     private ExpressionTree parseExpressionList() throws ParseException {
         ExpressionTree res = parseAddExpression();
-        
+
         if (currentTokenIndex >= expressionTokens.length)
             throw new ParseException("Missing closing ')'", currentTokenIndex-1);
 
