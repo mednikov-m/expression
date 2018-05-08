@@ -41,7 +41,7 @@ public class QueryGeneratorTest {
                 .withExpression("transactionRef like '%a'")
                 .build();
         String sql = generator.generate(PREFIX, tree);
-        assertEquals("select * from entry_tags where (name = 'transactionRef' and str_value like '%a') and (name = 'transactionId' and num_value in (3, 2, 1))", sql);
+        assertEquals("select * from entry_tags where name = 'transactionRef' and str_value like '%a'", sql);
     }
 
     @Test
@@ -50,7 +50,7 @@ public class QueryGeneratorTest {
                 .withExpression("transactionRef like '%a' and transactionId in (1, 2, 3)")
                 .build();
         String sql = generator.generate(PREFIX, tree);
-        assertEquals("select * from entry_tags where name = 'transactionRef' and str_value like '%a'", sql);
+        assertEquals("select * from entry_tags where (name = 'transactionRef' and str_value like '%a') and (name = 'transactionId' and num_value in (3, 2, 1))", sql);
     }
 
 
